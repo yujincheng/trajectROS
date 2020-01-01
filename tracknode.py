@@ -73,6 +73,45 @@ def Posearray2G2O(g2ofname, pose_array):
             pointID += 1
             index += 1
 
+def Globalarray2Relarray(global_array, rel_array):
+    prev_pose = Pose()
+    prev_pose.orientation.w = 1
+    rel_pose = Pose()
+    index = 1
+    for pose in global_array.poses:
+        if index == 1:
+            pass
+        else :
+            rel_pose = posemath.toMsg ( (posemath.fromMsg(prev_pose).Inverse() * posemath.fromMsg(pose)) )
+            rel_array.poses.append(rel_pose)
+        index+=1
+    return rel_array
+
+
+
+
+def Global2Rel(globalfname, pose_array):
+    global_array = PoseArray()
+    RTtxt2Posearray(globalfname,global_array)
+    Globalarray2Relarray(global_array, pose_array)
+    return pose_array
+
+def Global2Relfile(globalfname, relfname):
+    pose_array = PoseArray()
+    Global2Rel(globalfname, pose_array)
+    with open(relfname, "w") as relfile:
+        for pose in pose_array.poses:
+            outarray = posemath.toMatrix( posemath.fromMsg(pose) )
+            outonedim = outarray[0:3,:].reshape((12))
+            for index in range(11):
+                relfile.write("{} ".format(outonedim[index]) )
+            relfile.write("{}\n".format(outonedim[11]) )
+        relfile.close()
+
+
+
+
+
 
 def Loop2G2O(g2ofname, transform_loops):
     with open(g2ofname, "a") as g2ofile:
@@ -159,6 +198,8 @@ def gtsamOpt2Posearray(inputfname, pose_array):
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, quit)                                
     signal.signal(signal.SIGTERM, quit)
+
+    Global2Relfile('testdata/scaled_09.txt', 'testdata/scaled_09_rel.txt')
 
     transformloop = []
     posearray = PoseArray()
