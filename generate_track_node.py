@@ -46,7 +46,7 @@ def callback(data):
 def main():
     global posearray_pub
     rospy.init_node('generate_track_py', anonymous=True)
-    rospy.Subscriber("/visual_odometry/transform_relative", TransformStamped, callback)
+    rospy.Subscriber("relpose", TransformStamped, callback)
     posearray_pub = rospy.Publisher("posearray",PoseArray, queue_size=3)
     rospy.spin()
 

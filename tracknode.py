@@ -22,10 +22,27 @@ def quit(signum, frame):
     print 'stop fusion'
     sys.exit()
 
+def isrot(R, tol):
+    if not ( R.shape[0] ==3 and R.shape[1] ==3 ):
+        print("R is not 3x3")
+        return False
+    else :
+        RTR = R*R.transpose()
+        resmat = RTR - np.eye(3)
+        res = np.linalg.norm(resmat)
+        if res > tol:
+            print("R is not orthonormal, i.e. ||(R''R-I)|| > {}".format(tol) )
+            return False
+        elif (np.linalg.det(R) < 0 ):
+            print("R determinant < 0")
+            return False
+        return True
+
 
 def np2Transform(nparray):
     npmat = nparray.reshape((3,4))
-    # R = npmat[0:3,0:3]
+    R = npmat[0:3,0:3]
+    assert ( isrot(R,1) )
     # T = npmat[0:3,3]
     posetmp = posemath.fromMatrix(npmat)
     transformtmp = posemath.toMsg(posetmp)
@@ -45,8 +62,11 @@ def gstamPose2Transform(gstamPose):
 def RTtxt2Posearray(txtfname, pose_array):
     posearrays = np.loadtxt(txtfname,dtype=np.float32)
     assert(posearrays.shape[1] == 12)
+    index = 1
     for lines in posearrays:
+        print(index)
         pose_array.poses.append(np2Transform(lines) )
+        index += 1
     return pose_array
     
 
@@ -63,9 +83,10 @@ def Posearray2G2O(g2ofname, pose_array):
                 pass
             else :
                 rel_pose = posemath.toMsg ( (posemath.fromMsg(prev_pose).Inverse() * posemath.fromMsg(pose)) )
-                # tmp =posemath.toMsg( posemath.fromMsg(prev_pose)*posemath.fromMsg(rel_pose) )
+                # tmp = posemath.toMsg( posemath.fromMsg(prev_pose)*posemath.fromMsg(rel_pose) )
                 prev_pose = pose
                 print >> g2ofile, "EDGE_SE3:QUAT {id1} {id2} {tx} {ty} {tz} {rx} {ry} {rz} {rw}  {COVAR_STR}".format(id1=pointID-1,id2=pointID, tx =rel_pose.position.x , ty =rel_pose.position.y , tz =rel_pose.position.z, rx =rel_pose.orientation.x, ry =rel_pose.orientation.y, rz =rel_pose.orientation.z, rw =rel_pose.orientation.w, COVAR_STR=COVAR_STR)
+            
             print >> g2ofile, "VERTEX_SE3:QUAT {pointID} {tx} {ty} {tz} {rx} {ry} {rz} {rw}".format(pointID=pointID,tx=pose.position.x,ty=pose.position.y,tz=pose.position.z, 
                 rx = pose.orientation.x, ry = pose.orientation.y, rz = pose.orientation.z, rw = pose.orientation.w)
 
@@ -76,16 +97,29 @@ def Posearray2G2O(g2ofname, pose_array):
 def Globalarray2Relarray(global_array, rel_array):
     prev_pose = Pose()
     prev_pose.orientation.w = 1
+    current_pose = Pose()
+    current_pose.orientation.w = 1
     rel_pose = Pose()
+    posearray = PoseArray()
     index = 1
+    RT_array = []
     for pose in global_array.poses:
         if index == 1:
             pass
         else :
             rel_pose = posemath.toMsg ( (posemath.fromMsg(prev_pose).Inverse() * posemath.fromMsg(pose)) )
             rel_array.poses.append(rel_pose)
+            prev_pose = pose
+
+            current_pose_RT = ( posemath.fromMsg(current_pose) *  posemath.fromMsg(rel_pose) )
+            current_pose = posemath.toMsg(current_pose_RT)
+
+            posearray.poses.append(current_pose)
+            RT_array.append(current_pose_RT)
+
         index+=1
     return rel_array
+    
 
 
 
@@ -108,9 +142,33 @@ def Global2Relfile(globalfname, relfname):
             relfile.write("{}\n".format(outonedim[11]) )
         relfile.close()
 
+def Relarray2Globalarray(rel_array, global_array):
+    current_pose = Pose()
+    current_pose.orientation.w = 1
+    global_array.poses.append(current_pose)
+    for pose in rel_array.poses:
+        current_pose = posemath.toMsg( posemath.fromMsg(current_pose) *  posemath.fromMsg(pose) )
+        global_array.poses.append(current_pose)
+    return global_array
 
 
+def Rel2Global(relfname, pose_array):
+    rel_array = PoseArray()
+    RTtxt2Posearray(relfname, rel_array)
+    Relarray2Globalarray(rel_array, pose_array)
 
+
+def Rel2Globalfile(relfname, globalfname ):
+    pose_array = PoseArray()
+    Rel2Global(relfname, pose_array)
+    with open(globalfname, "w") as relfile:
+        for pose in pose_array.poses:
+            outarray = posemath.toMatrix( posemath.fromMsg(pose) )
+            outonedim = outarray[0:3,:].reshape((12))
+            for index in range(11):
+                relfile.write("{} ".format(outonedim[index]) )
+            relfile.write("{}\n".format(outonedim[11]) )
+        relfile.close()
 
 
 def Loop2G2O(g2ofname, transform_loops):
