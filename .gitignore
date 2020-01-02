@@ -1,2 +1,3 @@
 *.g2o
 .vscode/
+*.pyc

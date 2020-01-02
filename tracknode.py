@@ -42,7 +42,7 @@ def isrot(R, tol):
 def np2Transform(nparray):
     npmat = nparray.reshape((3,4))
     R = npmat[0:3,0:3]
-    assert ( isrot(R,1) )
+    # assert ( isrot(R,1) )
     # T = npmat[0:3,3]
     posetmp = posemath.fromMatrix(npmat)
     transformtmp = posemath.toMsg(posetmp)
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, quit)                                
     signal.signal(signal.SIGTERM, quit)
 
-    Global2Relfile('testdata/scaled_09.txt', 'testdata/scaled_09_rel.txt')
+    Rel2Globalfile('testdata/scaled_09_rel.txt','testdata/scaled_09.txt')
 
     transformloop = []
     posearray = PoseArray()
