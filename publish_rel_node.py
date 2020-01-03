@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import trackutils
 import rospy
 from dslam_sp.msg import TransformStampedArray
