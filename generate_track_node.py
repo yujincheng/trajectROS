@@ -3,50 +3,60 @@ from PIL import Image
 import os
 import rospy
 from tf_conversions import posemath
-# from dslam_sp.msg import image_depth, PRrepresentor
+from dslam_sp.msg import TransformStampedArray, PoseStampedArray
 import tf2_ros
 from geometry_msgs.msg import TransformStamped, PoseStamped, Pose, PoseArray
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
+import tracknode
 
+import sys                                                              
+import signal
 
-current_pose = Pose()
-current_pose.orientation.w = 1
-print(current_pose)
-posearray = PoseArray()
-posearray.header.frame_id = "map"
+transArray = TransformStampedArray()
+LooptransArray = TransformStampedArray()
+poseStampedArray = PoseStampedArray()
 posearray_pub = None
-trajectedge_array = []
-
-class TrajectEdge (object):
-    def __init__(self, fromid, toid, transform):
-        self.fromid = fromid
-        self.toid = toid
-        self.transform = transform
 
 
 def callback(data):
-    global current_pose, posearray, posearray_pub, trajectedge_array
-    tf_base_to_curr = PoseStamped()
-    tf_base_to_curr.header = data.header
-    tf_base_to_curr.pose.position = data.transform.translation
-    tf_base_to_curr.pose.orientation = data.transform.rotation
-    current_pose_tmp = ( posemath.fromMsg(current_pose) *  posemath.fromMsg(tf_base_to_curr.pose) )
-    current_pose = posemath.toMsg(current_pose_tmp)
-
-    trajectedge_array.append( TrajectEdge(data.child_frame_id, data.header.frame_id,  data.transform) )
-
-    posearray.poses.append(current_pose)
+    global posearray_pub, transArray, poseStampedArray
+    tracknode.appendTrans2PoseStampedArray(data, poseStampedArray)
+    tracknode.appendTrans2TransArray(data, transArray)
+    
+    posearray = PoseArray()
+    posearray.header.frame_id = "map"
+    tracknode.StampedArray2PoseArray(poseStampedArray, posearray)
     posearray_pub.publish(posearray)
-    print("==================================")
-    print(tf_base_to_curr.pose)
-    print(current_pose)
+
+
+def callback_loop(data):
+    global posearray_pub, transArray, poseStampedArray, LooptransArray
+
+    print ("loop detected")
+
+    tracknode.appendTrans2TransArray(data, LooptransArray)
+
+    tracknode.PoseStampedarray2G2O("./tem12.g2o", poseStampedArray)
+    tracknode.AddTransArray2G2O("./tem12.g2o", transArray )
+    tracknode.AddTransArray2G2O("./tem12.g2o", LooptransArray )
+    poseStampedArray.poseArray = []
+    tracknode.gtsamOpt2PoseStampedarray("./tem12.g2o",poseStampedArray)
+
+    posearray = PoseArray()
+    posearray.header.frame_id = "map"
+    tracknode.StampedArray2PoseArray(poseStampedArray, posearray)
+    posearray_pub.publish(posearray)
+    
 
 
 def main():
     global posearray_pub
+    signal.signal(signal.SIGINT, tracknode.quit)                                
+    signal.signal(signal.SIGTERM, tracknode.quit)
     rospy.init_node('generate_track_py', anonymous=True)
     rospy.Subscriber("relpose", TransformStamped, callback)
+    rospy.Subscriber("looppose", TransformStamped, callback_loop)
     posearray_pub = rospy.Publisher("posearray",PoseArray, queue_size=3)
     rospy.spin()
 
