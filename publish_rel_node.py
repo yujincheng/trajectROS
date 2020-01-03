@@ -9,14 +9,14 @@ import signal
 
 
 def main():
-    signal.signal(signal.SIGINT, tracknode.quit)                                
-    signal.signal(signal.SIGTERM, tracknode.quit)
+    signal.signal(signal.SIGINT, trackutils.quit)                                
+    signal.signal(signal.SIGTERM, trackutils.quit)
 
     rospy.init_node('publish_rel_node', anonymous=True)
     relpose_pub = rospy.Publisher("relpose",TransformStamped, queue_size=3)
     looptrans_pub = rospy.Publisher("looppose",TransformStamped, queue_size=3)
     rel_pose_array = PoseArray()
-    tracknode.RTtxt2Posearray("./testdata/rel_09_s.txt",rel_pose_array)
+    trackutils.RTtxt2Posearray("./testdata/rel_09_s.txt",rel_pose_array)
     from_id = 1
     to_id = 2
     for pose in rel_pose_array.poses:

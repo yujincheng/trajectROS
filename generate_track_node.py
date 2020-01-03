@@ -21,12 +21,12 @@ posearray_pub = None
 
 def callback(data):
     global posearray_pub, transArray, poseStampedArray
-    tracknode.appendTrans2PoseStampedArray(data, poseStampedArray)
-    tracknode.appendTrans2TransArray(data, transArray)
+    trackutils.appendTrans2PoseStampedArray(data, poseStampedArray)
+    trackutils.appendTrans2TransArray(data, transArray)
     
     posearray = PoseArray()
     posearray.header.frame_id = "map"
-    tracknode.StampedArray2PoseArray(poseStampedArray, posearray)
+    trackutils.StampedArray2PoseArray(poseStampedArray, posearray)
     posearray_pub.publish(posearray)
 
 
@@ -35,25 +35,25 @@ def callback_loop(data):
 
     print ("loop detected")
 
-    tracknode.appendTrans2TransArray(data, LooptransArray)
+    trackutils.appendTrans2TransArray(data, LooptransArray)
 
-    tracknode.PoseStampedarray2G2O("./tem12.g2o", poseStampedArray)
-    tracknode.AddTransArray2G2O("./tem12.g2o", transArray )
-    tracknode.AddTransArray2G2O("./tem12.g2o", LooptransArray )
+    trackutils.PoseStampedarray2G2O("./tem12.g2o", poseStampedArray)
+    trackutils.AddTransArray2G2O("./tem12.g2o", transArray )
+    trackutils.AddTransArray2G2O("./tem12.g2o", LooptransArray )
     poseStampedArray.poseArray = []
-    tracknode.gtsamOpt2PoseStampedarray("./tem12.g2o",poseStampedArray)
+    trackutils.gtsamOpt2PoseStampedarray("./tem12.g2o",poseStampedArray)
 
     posearray = PoseArray()
     posearray.header.frame_id = "map"
-    tracknode.StampedArray2PoseArray(poseStampedArray, posearray)
+    trackutils.StampedArray2PoseArray(poseStampedArray, posearray)
     posearray_pub.publish(posearray)
     
 
 
 def main():
     global posearray_pub
-    signal.signal(signal.SIGINT, tracknode.quit)                                
-    signal.signal(signal.SIGTERM, tracknode.quit)
+    signal.signal(signal.SIGINT, trackutils.quit)                                
+    signal.signal(signal.SIGTERM, trackutils.quit)
     rospy.init_node('generate_track_py', anonymous=True)
     rospy.Subscriber("relpose", TransformStamped, callback)
     rospy.Subscriber("looppose", TransformStamped, callback_loop)
