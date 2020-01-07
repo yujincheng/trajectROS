@@ -11,9 +11,10 @@ from geometry_msgs.msg import TransformStamped, PoseStamped, Pose, PoseArray
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import trackutils
-
+import time
 import sys                                                              
 import signal
+import threading
 
 transArray = TransformStampedArray()
 LooptransArray = TransformStampedArray()
@@ -31,13 +32,39 @@ def callback(data):
     trackutils.StampedArray2PoseArray(poseStampedArray, posearray)
     posearray_pub.publish(posearray)
 
+BackendRunning = False
+NewLoop = False
 
 def callback_loop(data):
-    global posearray_pub, transArray, poseStampedArray, LooptransArray
-
+    global LooptransArray, NewLoop
     print ("loop detected")
 
     trackutils.appendTrans2TransArray(data, LooptransArray)
+    NewLoop = True
+
+def BackendThread():
+    global posearray_pub, transArray, poseStampedArray, LooptransArray,BackendRunning, NewLoop
+    while True:
+        time.sleep(3)
+        if (not BackendRunning) and (NewLoop):
+            BackendRunning = True
+            NewLoop = False
+            BackendOpt(transArray,poseStampedArray,LooptransArray,posearray_pub)
+            BackendRunning = False
+
+    # trackutils.PoseStampedarray2G2O("./tem12.g2o", poseStampedArray)
+    # trackutils.AddTransArray2G2O("./tem12.g2o", transArray )
+    # trackutils.AddTransArray2G2O("./tem12.g2o", LooptransArray )
+    # poseStampedArray.poseArray = []
+    # trackutils.gtsamOpt2PoseStampedarray("./tem12.g2o",poseStampedArray)
+
+    # posearray = PoseArray()
+    # posearray.header.frame_id = "map"
+    # trackutils.StampedArray2PoseArray(poseStampedArray, posearray)
+    # posearray_pub.publish(posearray)
+    
+
+def BackendOpt(transArray,poseStampedArray,LooptransArray,posearray_pub):
 
     trackutils.PoseStampedarray2G2O("./tem12.g2o", poseStampedArray)
     trackutils.AddTransArray2G2O("./tem12.g2o", transArray )
@@ -49,8 +76,6 @@ def callback_loop(data):
     posearray.header.frame_id = "map"
     trackutils.StampedArray2PoseArray(poseStampedArray, posearray)
     posearray_pub.publish(posearray)
-    
-
 
 def main():
     global posearray_pub
@@ -60,6 +85,9 @@ def main():
     rospy.Subscriber("relpose", TransformStamped, callback)
     rospy.Subscriber("looppose", TransformStamped, callback_loop)
     posearray_pub = rospy.Publisher("posearray",PoseArray, queue_size=3)
+    backt = threading.Thread(target=BackendThread)
+    backt.setDaemon(True)
+    backt.start()
     rospy.spin()
 
 
