@@ -218,8 +218,10 @@ def Globalarray2Relarray(global_array, rel_array):
         index+=1
     return rel_array
     
-def appendTrans2TransArray(trans, trans_array):
+def appendTrans2TransArray(trans, trans_array, withassert = True):
     if not trans_array.transformArray:
+        trans_array.transformArray.append(trans)
+    elif not withassert:
         trans_array.transformArray.append(trans)
     else:
         assert(trans_array.transformArray[-1].header.frame_id == trans.child_frame_id)
@@ -233,6 +235,7 @@ def appendTrans2PoseStampedArray(trans, pose_array):
         pose_array.poseArray.append(posetmp)
         
     match = (pose_array.poseArray[-1].header.frame_id == trans.child_frame_id)
+    print("match id1:{} ; id2:{}".format(pose_array.poseArray[-1].header.frame_id,trans.child_frame_id) )
     assert(match)
     posetmp = PoseStamped()
     posetmp.header.frame_id = trans.header.frame_id
